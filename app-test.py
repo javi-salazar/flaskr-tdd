@@ -1,6 +1,7 @@
 import os
 import unittest
 import json
+import urllib
 
 from app import app, db
 
@@ -43,6 +44,18 @@ class FlaskrTestCase(unittest.TestCase):
             password=password
         ), follow_redirects=True)
 
+    def search(self, string):
+        """Search helper function."""
+        query = urllib.parse.quote_plus(string)
+        return self.app.get('/search/?query=' + query)
+
+    def createMsg(self):
+        self.login(app.config['USERNAME'], app.config['PASSWORD'])
+        return self.app.post('/add', data=dict(
+            title='<Hello>',
+            text='<strong>HTML</strong> allowed here'
+        ), follow_redirects=True)
+
     def logout(self):
         """Logout helper function."""
         return self.app.get('/logout', follow_redirects=True)
@@ -66,11 +79,7 @@ class FlaskrTestCase(unittest.TestCase):
 
     def test_messages(self):
         """Ensure that a user can post messages."""
-        self.login(app.config['USERNAME'], app.config['PASSWORD'])
-        rv = self.app.post('/add', data=dict(
-            title='<Hello>',
-            text='<strong>HTML</strong> allowed here'
-        ), follow_redirects=True)
+        rv = self.createMsg()
         self.assertNotIn(b'No entries yet. Add some!', rv.data)
         self.assertIn(b'&lt;Hello&gt;', rv.data)
         self.assertIn(b'<strong>HTML</strong> allowed here', rv.data)
@@ -80,6 +89,14 @@ class FlaskrTestCase(unittest.TestCase):
         rv = self.app.get('/delete/1')
         data = json.loads(rv.data)
         self.assertEqual(data['status'], 1)
+
+    def test_search_message(self):
+        """Ensure search works."""
+        self.createMsg()
+        rv = self.search('Hello')
+        self.assertIn(b'&lt;Hello&gt;', rv.data)
+        self.assertIn(b'<strong>HTML</strong> allowed here', rv.data)
+        
 
 
 if __name__ == '__main__':
